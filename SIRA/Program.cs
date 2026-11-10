@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using SIRA.Configuration;
 using SIRA.Data;
+using SIRA.Models;
 using SIRA.Repositories.Implementations;
 using SIRA.Repositories.Interfaces;
 using SIRA.Services;
@@ -63,6 +64,23 @@ using (var scope = app.Services.CreateScope())
 
     if (!string.IsNullOrWhiteSpace(script))
         db.Database.ExecuteSqlRaw(script);
+
+    // ── Seed: crear usuario root solo si la tabla de usuarios está vacía ──────
+    var aliasRoot = Environment.GetEnvironmentVariable("SIRA_ROOT_ALIAS") ?? "root";
+    var claveRoot = Environment.GetEnvironmentVariable("SIRA_ROOT_CLAVE");
+    if (!string.IsNullOrWhiteSpace(claveRoot) && !db.Usuarios.Any())
+    {
+        var hasher = scope.ServiceProvider.GetRequiredService<IClaveHasher>();
+        db.Usuarios.Add(new Usuario
+        {
+            Alias          = aliasRoot,
+            Clave          = hasher.Hashear(claveRoot),
+            EsRoot         = true,
+            EsSuperUsuario = true,
+            EsActivo       = true
+        });
+        db.SaveChanges();
+    }
 }
 
 app.UseDeveloperExceptionPage();
